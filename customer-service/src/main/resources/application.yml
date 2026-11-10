@@ -1,0 +1,18 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: CUSTOMER-SERVICE
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/digital_banking
+    username: postgres
+    password: root
+    driver-class-name: org.postgresql.Driver
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
