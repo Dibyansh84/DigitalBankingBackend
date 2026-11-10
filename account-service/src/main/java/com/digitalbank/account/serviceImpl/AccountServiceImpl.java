@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -177,5 +178,15 @@ We preserve the account record and its history for audit and financial reconcili
                 throw new IllegalArgumentException("Account is already closed");
             }
         }
+
+        //Validate Balance Before Closing Account
+        BigDecimal balance = accountJdbcRepository.findBalanceById(accountId);
+        if(balance.compareTo(BigDecimal.ZERO) >0)
+        {
+            throw new IllegalArgumentException("Account cannot be closed because it has an outstanding balance");
+        }
+        accountJdbcRepository.closeAccount(accountId);
     }
+
+
 }
