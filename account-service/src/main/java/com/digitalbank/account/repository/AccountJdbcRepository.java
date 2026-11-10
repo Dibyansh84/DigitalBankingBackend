@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -93,5 +94,18 @@ public class AccountJdbcRepository {
         params.addValue("accountId", accountId);
 
         return jdbcTemplate.update(sql, params);
+    }
+
+    public BigDecimal findBalanceById(Long accountId)
+    {
+        //We'll use BigDecimal rather than double because financial calculations require precise decimal arithmetic.
+        String sql = """
+                SELECT balance FROM public.accounts
+                WHERE id = :accountId
+                """;
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("accountId", accountId);
+
+        return jdbcTemplate.queryForObject(sql, params, BigDecimal.class);
     }
 }
