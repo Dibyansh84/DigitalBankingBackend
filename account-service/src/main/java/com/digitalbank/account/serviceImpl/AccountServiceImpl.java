@@ -143,11 +143,28 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public void updateAccount(Long accountId, AccountUpdateRequestDto requestDto) {
-        /*Why void?
-Our current update operation only needs to confirm whether the update succeeded.
-We can fetch the updated account separately when needed.
-In a later improvement, we can return the updated AccountResponseDto directly to avoid an additional API call.*/
+    public void updateAccount(Long accountId, AccountUpdateRequestDto requestDto)
+    {
+
+        //Once the account is already CLOSED, its account type or status should not be modified through the general update API.
+
+        //Find an account.
+        AccountResponseDto account = accountJdbcRepository.findById(accountId);
+
+        String currentStatus = account.getAccountStatus();
+        String requestedStatus = requestDto.getAccountStatus();
+
+        //Once the account is already CLOSED,  its account type or status should not be modified through the general update API.
+        if("CLOSED".equals(currentStatus))
+        {
+            throw new IllegalArgumentException("Closed account cannot be updated");
+        }
+
+        if("CLOSED".equals(requestedStatus))
+        {
+            throw new IllegalArgumentException("Use the close account operation or close API to close an account");
+//            Account closure is a separate business operation with additional balance validation. We shouldn't bypass those rules through the general update API.
+        }
 
         int updatedRows = accountJdbcRepository.updateAccount(accountId, requestDto.getAccountType(),
                 requestDto.getAccountStatus());
@@ -160,33 +177,25 @@ In a later improvement, we can return the updated AccountResponseDto directly to
     /*Why closeAccount() instead of deleteAccount()?
 In banking applications, account closure is a business operation, not ordinary record deletion.
 We preserve the account record and its history for audit and financial reconciliation.*/
+
     @Override
-    @Transactional   // Run this whole method as one database transaction
+    @Transactional
     public void closeAccount(Long accountId) {
-        // Try to close the account directly in the database.
-        // This returns how many rows were actually changed.
-        int updatedRows = accountJdbcRepository.closeAccount(accountId);
+        // Fetch the account to check its current status
+        AccountResponseDto account = accountJdbcRepository.findById(accountId);
 
-        // If 0 rows were changed, the account was not closed by this call.
-        // We need to find out why.
-        if (updatedRows == 0) {
-            // Fetch the account to check its current status
-            AccountResponseDto account = accountJdbcRepository.findById(accountId);
-
-            // If the account is already closed, tell the caller
-            if (account.getAccountStatus().equals("CLOSED")) {
-                throw new IllegalArgumentException("Account is already closed");
-            }
+        // If the account is already closed, tell the caller
+        if ("CLOSED".equals(account.getAccountStatus()))
+        {
+            throw new IllegalArgumentException("Account is already closed");
         }
-
-        //Validate Balance Before Closing Account
+        //Validate Balance Before Closing Account.
         BigDecimal balance = accountJdbcRepository.findBalanceById(accountId);
-        if(balance.compareTo(BigDecimal.ZERO) >0)
+
+        if (balance.compareTo(BigDecimal.ZERO) > 0)
         {
             throw new IllegalArgumentException("Account cannot be closed because it has an outstanding balance");
         }
         accountJdbcRepository.closeAccount(accountId);
     }
-
-
 }
