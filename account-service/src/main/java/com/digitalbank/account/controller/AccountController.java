@@ -48,7 +48,7 @@ public class AccountController {
         return ResponseEntity.ok("Account updated successfully");
     }
 
-    //Close Account API
+    //Close Account API(It's a soft-delete)
     @PostMapping("/closeAccount")
     public ResponseEntity<String> closeAccount(@RequestParam("accountId") Long accountId)
     {
