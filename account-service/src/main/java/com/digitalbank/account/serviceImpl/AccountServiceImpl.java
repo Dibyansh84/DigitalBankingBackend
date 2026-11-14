@@ -11,7 +11,6 @@ import com.digitalbank.account.repository.AccountJpaRepository;
 import com.digitalbank.account.service.AccountService;
 import com.digitalbank.account.util.AccountNumberGenerator;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,17 +27,23 @@ public class AccountServiceImpl implements AccountService {
     private final AccountJpaRepository accountJpaRepository;
     private final AccountNumberGenerator accountNumberGenerator;
     private final AccountJdbcRepository accountJdbcRepository;
+    private final EntityManager entityManager;
 
     //Constructor based dependency injection.
-    public AccountServiceImpl(AccountJpaRepository accountJpaRepository, AccountNumberGenerator accountNumberGenerator,
-                              AccountJdbcRepository accountJdbcRepository) {
+    public AccountServiceImpl(
+            AccountJpaRepository accountJpaRepository,
+            AccountNumberGenerator accountNumberGenerator,
+            AccountJdbcRepository accountJdbcRepository,
+            EntityManager entityManager) {
+
         this.accountJpaRepository = accountJpaRepository;
         this.accountNumberGenerator = accountNumberGenerator;
         this.accountJdbcRepository = accountJdbcRepository;
+        this.entityManager = entityManager;
     }
 
-    @PersistenceContext
-    private EntityManager entityManager;
+//    @PersistenceContext
+//    private EntityManager entityManager;
 
 
     @Override
