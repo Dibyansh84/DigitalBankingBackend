@@ -152,6 +152,7 @@ public class AccountServiceImpl implements AccountService {
     {
 
         //Once the account is already CLOSED, its account type or status should not be modified through the general update API.
+        //Instead, it should call the close account API.
 
         //Find an account.
         AccountResponseDto account = accountJdbcRepository.findById(accountId);
@@ -167,7 +168,7 @@ public class AccountServiceImpl implements AccountService {
 
         if("CLOSED".equals(requestedStatus))
         {
-            throw new IllegalArgumentException("Use the close account operation or close API to close an account");
+            throw new IllegalArgumentException("Use the close account operation or close account API to close an account");
 //            Account closure is a separate business operation with additional balance validation. We shouldn't bypass those rules through the general update API.
         }
 
