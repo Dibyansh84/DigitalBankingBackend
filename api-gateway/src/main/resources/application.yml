@@ -16,12 +16,15 @@ spring:
             - id: customer-service-route
               uri: lb://CUSTOMER-SERVICE
               predicates:
-                - Path=/api/customers/**
-
+              - Path=/api/customers/**
             - id: account-service-route
               uri: lb://ACCOUNT-SERVICE
               predicates:
-                  - Path=/api/accounts/**
+              - Path=/api/accounts/**
+            - id: transaction-service-route
+              uri: lb://TRANSACTION-SERVICE
+              predicates:
+              - Path=/api/transactions/**
 
 eureka:
   client:
