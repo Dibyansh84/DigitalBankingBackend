@@ -297,4 +297,125 @@ public class TransactionControllerTest
         //The request is bad, so the code should stop before the service.
         verifyNoInteractions(transactionService);
     }
+
+    //Test 7: Reject a missing destination account ID (or Reject toAccountId with null value).
+    //This checks the @NotNull validation on toAccountId.
+    @Test
+    void testCreateTransactionWithNullToAccountId() throws Exception
+    {
+        //Step 1: Arrange(Build the request body that we will send)
+        TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
+
+        //The money goes from account 1.
+        requestDto.setFromAccountId(1L);
+
+        //The "toAccountId" is missing (null).
+        //A transfer needs to know which account the money goes to.
+        //So we leave this empty on purpose to test the error.
+        requestDto.setToAccountId(null);
+
+        //The amount is 500.00. This part is fine.
+        requestDto.setAmount(new BigDecimal("500.00"));
+
+        //A short note for the transfer.
+        requestDto.setDescription("Test transfer");
+
+        //Step 2: Act & Assert(Send the request and check the answer)
+        //We send a POST call to the create transaction URL.
+        //The body is the request object turned into JSON text.
+        mockMvc.perform(post("/api/transactions/createTransaction")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(requestDto)))
+
+                //The server should answer "BAD REQUEST" (HTTP 400)
+                //This means the fake "from" account(0) was refused.
+                .andExpect(status().isBadRequest());
+
+        //Step 3: Verify
+        // Make sure the service was never called.
+        //The request is bad, so the code should stop before the service.
+        verifyNoInteractions(transactionService);
+    }
+
+    //Test 8: Reject a zero destination account ID.
+    //This checks the @Positive constraint on toAccountId.
+    @Test
+    void testCreateTransactionWithZeroAccountId() throws Exception
+    {
+        //Step 1: Arrange(Build the request body that we will send)
+        TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
+
+         //The money goes from account 1.
+        requestDto.setFromAccountId(1L);
+
+        //The "toAccountId" is zero.
+        //Account numbers start at 1, so 0 is not a real account.
+        //We send it on purpose to test that the server says no.
+        requestDto.setToAccountId(0L);
+
+        //The amount is 500.00. This part is fine.
+        requestDto.setAmount(new BigDecimal("500.00"));
+
+        //A short note for the transfer.
+        requestDto.setDescription("Test transfer");
+
+        //Step 2 and 3: Act & Assert(Send the request and check the answer)
+        //We send a POST call to the create transaction URL.
+        //The body is the request object turned into JSON text.
+        mockMvc.perform(post(("/api/transactions/createTransaction"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(requestDto)))
+
+            //The server should answer "BAD REQUEST" (HTTP 400)
+            //This means the fake "from" account(0) was refused.
+                .andExpect(status().isBadRequest());
+
+        //Step 4: Verify
+        //Make sure the service was never called.
+        //The request is bad, so the code should stop before the service.
+        verifyNoInteractions(transactionService);
+    }
+
+    //Test 9: Reject an empty description longer than the allowed limit.
+    /* Actually, an empty description is valid in the current DTO.
+    Let's test the real constraint: description exceeding 255 characters.*/
+    //This tests your DTO's @Size(max = 255) constraint.
+    @Test
+    void testCreateTransactionWithDescriptionExceeding255Characters() throws Exception
+    {
+        //Step 1:  Arrange(Build the request body that we will send)
+        TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
+
+        //Money goes from account ID 1
+        requestDto.setFromAccountId(1L);
+
+        //Money goes to account ID 2
+        requestDto.setToAccountId(2L);
+
+        //The amount is 500.00.
+        requestDto.setAmount(new BigDecimal("500.00"));
+
+        //The note is too long on purpose.
+        //We make a text with 256 letter "A" in a row.
+        //The limit is 255, so this is one letter too many.
+        requestDto.setDescription("A".repeat(256));
+
+        //Step 2 and 3: Act & Assert
+        //Send the request and check the answer.
+        //We send a POST call to create the transaction URL.
+        //The body is the request object turned into JSON text.
+        mockMvc.perform(post("/api/transactions/createTransaction")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(requestDto)))
+
+                //The server should answer "BAD REQUEST" (HTTP 400)
+                //This means the long note is refused
+                .andExpect(status().isBadRequest());
+
+        //Step 4: Verify
+        //Make sure the service was never called.
+        //The request was bad, so the code should stop before the service.
+        verifyNoInteractions(transactionService);
+
+    }
 }
