@@ -2,35 +2,39 @@ package com.digitalbank.transaction.controller;
 
 import com.digitalbank.transaction.dto.TransactionCreateRequestDto;
 import com.digitalbank.transaction.dto.TransactionResponseDto;
+import com.digitalbank.transaction.repository.TransactionJpaRepository;
 import com.digitalbank.transaction.serviceImpl.TransactionServiceImpl;
+import com.digitalbank.transaction.utility.TransactionReferenceGenerator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 // ----- MediaType for APPLICATION_JSON -----
 import org.springframework.http.MediaType;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 // @WebMvcTest	Loads only the MVC layer for testing
 @WebMvcTest(TransactionController.class)
-public class TransactionControllerTest
-{
+public class TransactionControllerTest {
     //MockMvc lets us send fake HTTP requests (GET, POST, etc.)
     //to the controller, without starting a real server.
     @Autowired
     private MockMvc mockMvc;
 
-   /* ObjectMapper changes Java objects into JSON text
-   and JSON text back into Java objects.
-   We use it to build the request body for our texts.
-    */
+    /* ObjectMapper changes Java objects into JSON text
+    and JSON text back into Java objects.
+    We use it to build the request body for our texts.
+     */
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -43,8 +47,7 @@ public class TransactionControllerTest
 
     //Test 1: Successful Transaction API Test
     @Test
-    void testCreateTransactionSuccessfully() throws Exception
-    {
+    void testCreateTransactionSuccessfully() throws Exception {
         //Step 1: Arrange(Prepare the data)
         //Make a request object, like a user filling a form
         TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
@@ -116,8 +119,7 @@ public class TransactionControllerTest
     /*What are we testing?
     Your DTO's @DecimalMin(value = "0.00", inclusive = false) should reject zero before the controller calls the service.*/
     @Test
-    void testCreateTransactionWithZeroAmount() throws Exception
-    {
+    void testCreateTransactionWithZeroAmount() throws Exception {
         //Step 1: Arrange (Prepare the data by making a request body)
         //We are making a fake transfer request.
         TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
@@ -139,8 +141,8 @@ public class TransactionControllerTest
         //We send the POST call to the create transaction URL.
         //We turn the request object into JSON text and send it as the body.
         mockMvc.perform(post("/api/transactions/createTransaction")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestDto)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
 
                 //Check the answer
                 //The server should say "Bad Request" (HTTP 400)
@@ -156,8 +158,7 @@ public class TransactionControllerTest
 
     //Test 3: Reject a negative transaction amount.
     @Test
-    void testCreateTransactionWithNegativeAmount() throws Exception
-    {
+    void testCreateTransactionWithNegativeAmount() throws Exception {
         //Step 1: Arrange (Prepare the request body that we will send)
         TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
 
@@ -175,10 +176,10 @@ public class TransactionControllerTest
         //We send a POST call to the create transaction URL.
         //The body is the request object turned into JSON text.
         mockMvc.perform(post("/api/transactions/createTransaction")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestDto)))
-        //The server should answer "Bad Request" (HTTP 400).
-        //This means the negative amount was refused.
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                //The server should answer "Bad Request" (HTTP 400).
+                //This means the negative amount was refused.
                 .andExpect(status().isBadRequest());
 
         //Step 3: Verify: Make sure the service was never called.
@@ -190,8 +191,7 @@ public class TransactionControllerTest
     /* Concept: @NotNull rejects a missing amount,
     while @DecimalMin rejects zero and negative amounts. These validations cover different cases.*/
     @Test
-    void testCreateTransactionWithNullAmount() throws Exception
-    {
+    void testCreateTransactionWithNullAmount() throws Exception {
         //Step 1: Arrange(Prepare the request body that we will send)
         TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
 
@@ -209,8 +209,8 @@ public class TransactionControllerTest
         //We send a POST call to the create transaction URL.
         //The body is the request object turned into JSON text.
         mockMvc.perform(post("/api/transactions/createTransaction")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestDto)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
 
                 //The server should answer "Bad Request" (HTTP 400)
                 //This means the missing amount was refused.
@@ -225,8 +225,7 @@ public class TransactionControllerTest
     //Test 5: Reject a missing source account ID.
     //This verifies the @NotNull validation on fromAccountId.
     @Test
-    void testCreateTransactionWithNullAccountId() throws Exception
-    {
+    void testCreateTransactionWithNullAccountId() throws Exception {
         //Step 1: Arrange(Prepare the request body that we will send)
         TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
 
@@ -248,8 +247,8 @@ public class TransactionControllerTest
         //We send a POST call to the create transaction URL.
         //The body is the request object turned into JSON text.
         mockMvc.perform(post("/api/transactions/createTransaction")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestDto)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
 
                 //The server should answer "BAD REQUEST" (HTTP 400)
                 //This means the missing "from" account was refused.
@@ -263,8 +262,7 @@ public class TransactionControllerTest
     //Test 6: Reject a zero source account ID.
     //This checks the @Positive constraint on fromAccountId.
     @Test
-    void testCreateTransactionWithZeroFromAccountId() throws Exception
-    {
+    void testCreateTransactionWithZeroFromAccountId() throws Exception {
         //Step 1: Arrange(Build the request body that we will send)
         TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
 
@@ -286,8 +284,8 @@ public class TransactionControllerTest
         //We send a POST call to the create transaction URL.
         //The body is the request object turned into JSON text.
         mockMvc.perform(post("/api/transactions/createTransaction")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestDto)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
 
                 //The server should answer "BAD REQUEST" (HTTP 400)
                 //This means the fake "from" account(0) was refused.
@@ -301,8 +299,7 @@ public class TransactionControllerTest
     //Test 7: Reject a missing destination account ID (or Reject toAccountId with null value).
     //This checks the @NotNull validation on toAccountId.
     @Test
-    void testCreateTransactionWithNullToAccountId() throws Exception
-    {
+    void testCreateTransactionWithNullToAccountId() throws Exception {
         //Step 1: Arrange(Build the request body that we will send)
         TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
 
@@ -324,8 +321,8 @@ public class TransactionControllerTest
         //We send a POST call to the create transaction URL.
         //The body is the request object turned into JSON text.
         mockMvc.perform(post("/api/transactions/createTransaction")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestDto)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
 
                 //The server should answer "BAD REQUEST" (HTTP 400)
                 //This means the fake "from" account(0) was refused.
@@ -340,12 +337,11 @@ public class TransactionControllerTest
     //Test 8: Reject a zero destination account ID.
     //This checks the @Positive constraint on toAccountId.
     @Test
-    void testCreateTransactionWithZeroAccountId() throws Exception
-    {
+    void testCreateTransactionWithZeroAccountId() throws Exception {
         //Step 1: Arrange(Build the request body that we will send)
         TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
 
-         //The money goes from account 1.
+        //The money goes from account 1.
         requestDto.setFromAccountId(1L);
 
         //The "toAccountId" is zero.
@@ -363,11 +359,11 @@ public class TransactionControllerTest
         //We send a POST call to the create transaction URL.
         //The body is the request object turned into JSON text.
         mockMvc.perform(post(("/api/transactions/createTransaction"))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestDto)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
 
-            //The server should answer "BAD REQUEST" (HTTP 400)
-            //This means the fake "from" account(0) was refused.
+                //The server should answer "BAD REQUEST" (HTTP 400)
+                //This means the fake "from" account(0) was refused.
                 .andExpect(status().isBadRequest());
 
         //Step 4: Verify
@@ -381,8 +377,7 @@ public class TransactionControllerTest
     Let's test the real constraint: description exceeding 255 characters.*/
     //This tests your DTO's @Size(max = 255) constraint.
     @Test
-    void testCreateTransactionWithDescriptionExceeding255Characters() throws Exception
-    {
+    void testCreateTransactionWithDescriptionExceeding255Characters() throws Exception {
         //Step 1:  Arrange(Build the request body that we will send)
         TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
 
@@ -405,8 +400,8 @@ public class TransactionControllerTest
         //We send a POST call to create the transaction URL.
         //The body is the request object turned into JSON text.
         mockMvc.perform(post("/api/transactions/createTransaction")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestDto)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
 
                 //The server should answer "BAD REQUEST" (HTTP 400)
                 //This means the long note is refused
