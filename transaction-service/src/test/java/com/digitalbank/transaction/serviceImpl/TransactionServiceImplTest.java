@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 public class TransactionServiceImplTest
 {
+    //TransactionServiceImplTest is for actual service with mocked dependencies.
+
     @Mock
     private TransactionJpaRepository transactionJpaRepository;
 
@@ -380,4 +382,164 @@ In banking systems, failure handling is just as important as successful executio
 
     }
 
+    //Test 10: Test same source and destination account
+    //There's an important business rule: A user must not transfer money from an account to the same account.
+    //Now let's verify this business rule with a TransactionServiceImpl unit test.
+    @Test
+    void testCreateTransactionWithSameSourceAndDestinationAccount()
+    {
+        //Step 1: Arrange -- Build the request body that we will send.
+        TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
+
+        //The money comes from account 1.
+        requestDto.setFromAccountId(1L);
+
+        //The money also goes to account 1.
+        //Sending money from account to itself makes no sense.
+        //So we use this on purpose to test the error.
+        requestDto.setToAccountId(1L);
+
+        //The amount is 500.00.
+        requestDto.setAmount(new BigDecimal("500.00"));
+
+        //A short note for the transfer.
+        requestDto.setDescription("Invalid self transfer");
+
+        //Step 2 & 3: Act & Assert -- Call the service and check the answer.
+        //We expect the service to throw an error called IllegalArgumentException.
+        //This means it saw the same account twice and said no.
+        assertThrows(IllegalArgumentException.class, () -> transactionServiceImpl.createTransaction(requestDto));
+
+        //Step 4: Verify --Make sure the helper parts were never used.
+        //The service should stop early, before it makes a reference number.
+        //or saves anything to the DB.
+        verifyNoInteractions(transactionReferenceGenerator);
+        verifyNoInteractions(transactionJpaRepository);
+
+        /*
+        Why this test matters:
+        - Same source and destination account must be rejected.
+        - No transaction reference should be generated.
+        - No database operation should take place.
+        * */
+    }
+
+    //Test 11: Test create transaction with a valid request after these changes.
+    //Let's make sure the new validation condition hasn't affected normal transactions.
+    @Test
+    void testCreateTransactionWithDifferentSourceAndDestinationAccounts()
+    {
+        //Step 1: Arrange -- Build the request body that we will send
+        TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
+
+        // The money comes from account 1.
+        requestDto.setFromAccountId(1L);
+
+        // The money goes to account 2.
+        // These are two different accounts, so this transfer is allowed.
+        requestDto.setToAccountId(2L);
+        // The amount is 500.00.
+        requestDto.setAmount(new BigDecimal("500.00"));
+
+        // A short note for the transfer.
+        requestDto.setDescription("Valid transfer");
+
+        // Fake setup: When the code asks for a new reference number,
+        // give it this fixed number.
+        when(transactionReferenceGenerator.generateTransactionReference()).thenReturn("TXN123456789013");
+
+        // Fake setup: Say that this reference number is not used yet.
+        // So it is safe to save the transfer with it.
+        when(transactionJpaRepository.existsByTransactionReference("TXN123456789013")).thenReturn(false);
+
+        // Fake setup: Make a pretend "saved" transfer.
+        // This is what the database would give back after saving.
+        Transaction savedTransaction = new Transaction();
+        savedTransaction.setId(1L);
+        savedTransaction.setTransactionReference("TXN123456789013");
+        savedTransaction.setFromAccountId(1L);
+        savedTransaction.setToAccountId(2L);
+        savedTransaction.setAmount(new BigDecimal("500.00"));
+        savedTransaction.setTransactionType("TRANSFER");
+        savedTransaction.setTransactionStatus("PENDING");
+        savedTransaction.setDescription("Valid transfer");
+
+        // Fake setup: When the code tries to save any transfer,
+        // return the pretend saved transfer above.
+        when(transactionJpaRepository.saveAndFlush(any(Transaction.class))).thenReturn(savedTransaction);
+
+        //Act: Call the real service with our request
+        TransactionResponseDto responseDto = transactionServiceImpl.createTransaction(requestDto);
+
+        //Assert: Check that the answer looks correct.
+        //The answer should not be empty.
+        assertNotNull(responseDto);
+
+        //The "from" account in the answer should be 1.
+        assertEquals(1L, responseDto.getFromAccountId());
+
+        //The "to" account in the answer should be 2.
+        assertEquals(2L, responseDto.getToAccountId());
+
+        //The transfer should be marked as "PENDING" (waiting)
+        assertEquals("PENDING", responseDto.getTransactionStatus());
+
+        //Verify: Make sure the save function was called exactly one time.
+        //This means the transfer was saved to the DB once.
+        verify(transactionJpaRepository, times(1))
+                .saveAndFlush(any(Transaction.class));
+
+    }
+
+    /*We've now verified both sides of the business rule:
+    - Same source and destination account → rejected.
+    - Different source and destination accounts → accepted.*/
+
+    //Test 12: Verify the saved transaction status
+    //A newly created transaction should start with 'PENDING' not 'SUCCESS',
+    // because we haven't implemented the actual fund transfer yet.
+
+    @Test
+    void testNewTransactionStatusShouldBePending()
+    {
+        //Arrange: Build the request body that we will send
+        TransactionCreateRequestDto requestDto = new TransactionCreateRequestDto();
+
+        //The money comes from account 1
+        requestDto.setFromAccountId(1L);
+
+        //The money goes to the account 2.
+        requestDto.setToAccountId(2L);
+
+        //The amount is 500.00
+        requestDto.setAmount(new BigDecimal("500.00"));
+
+        //Fake setup: When the code asks for a new reference number
+        //give it this fixed number.
+        when(transactionReferenceGenerator.generateTransactionReference()).thenReturn("TXN123456789013");
+
+        //Fake setup: Say that every reference number is not used yet.
+        //So it is safe to save the transfer.
+        when(transactionJpaRepository.existsByTransactionReference(anyString())).thenReturn(false);
+
+        //Fake setup: When the code tries to save a transfer,
+        // just give back the same transfer that was sent in.
+        //This lets us check what the service set on it.
+        when(transactionJpaRepository.saveAndFlush(any(Transaction.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        //Act: Call the real service with our request
+        TransactionResponseDto responseDto = transactionServiceImpl.createTransaction(requestDto);
+
+        //Assert: Check the answer.
+        //A new transfer should start with status "PENDING"(waiting)
+        assertEquals("PENDING", responseDto.getTransactionStatus());
+
+        //A new transfer should have the type "TRANSFER"
+        assertEquals("TRANSFER", responseDto.getTransactionType());
+
+        //Verify: Make sure the save function was called one time.
+        //This proves the transfer was actually saved to the DB.
+        verify(transactionJpaRepository).saveAndFlush(any(Transaction.class));
+    }
 }

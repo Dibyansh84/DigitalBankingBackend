@@ -33,6 +33,14 @@ public class TransactionServiceImpl implements TransactionService
     @Override
     public TransactionResponseDto createTransaction(TransactionCreateRequestDto requestDto)
     {
+        /* There is an important business rule: A user must not transfer money from account to the same account. */
+        /*Same source and destination account must be rejected.
+        No transaction reference should be generated.*/
+        if(requestDto.getFromAccountId().equals(requestDto.getToAccountId()))
+        {
+            throw new IllegalArgumentException("Source and destination accounts cannot be the same");
+        }
+
         //Get a code that is not used in the database.
         String transactionReference = generateUniqueReference();
 
